@@ -1224,6 +1224,11 @@ fun main(args: Array<String>) {
         }
     }
 
+    testGroup("jps-plugin/jps-tests-java9/test", "jps-plugin/testData") {
+        testClass(baseTestClassName = "org.jetbrains.kotlin.jps.build.AbstractIncrementalJava9JpsTest") {
+            model("incremental/java9", extension = null, recursive = false)
+        }
+    }
 
     testGroup("jps-plugin/jps-tests/test", "jps-plugin/testData") {
         fun TestGroup.TestClass.commonProtoComparisonTests() {
