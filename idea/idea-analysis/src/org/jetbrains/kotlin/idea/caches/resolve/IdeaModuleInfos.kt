@@ -30,6 +30,7 @@ import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.util.PathUtil
 import com.intellij.util.SmartList
+import org.jetbrains.jps.model.java.JavaSourceRootType
 import org.jetbrains.kotlin.analyzer.ModuleInfo
 import org.jetbrains.kotlin.analyzer.TrackableModuleInfo
 import org.jetbrains.kotlin.caches.resolve.LibraryModuleInfo
@@ -142,7 +143,11 @@ data class ModuleTestSourceInfo(override val module: Module) : ModuleSourceInfo 
     })
 
     override fun modulesWhoseInternalsAreVisible() = module.cached(CachedValueProvider {
-        val list = SmartList<ModuleInfo>(module.productionSourceInfo())
+        val list = SmartList<ModuleInfo>()
+
+        if (module.hasRootsOfType(JavaSourceRootType.SOURCE)) {
+            list.add(module.productionSourceInfo())
+        }
 
         TestModuleProperties.getInstance(module).productionModule?.let {
             list.add(it.productionSourceInfo())

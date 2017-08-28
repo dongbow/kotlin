@@ -17,13 +17,16 @@
 package org.jetbrains.kotlin.idea.caches.resolve
 
 import com.intellij.openapi.components.service
+import com.intellij.openapi.module.Module
 import com.intellij.openapi.module.ModuleManager
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.project.rootManager
 import com.intellij.openapi.projectRoots.ProjectJdkTable
 import com.intellij.openapi.projectRoots.Sdk
 import com.intellij.openapi.roots.JdkOrderEntry
 import com.intellij.openapi.roots.LibraryOrderEntry
 import com.intellij.openapi.roots.ModuleRootManager
+import org.jetbrains.jps.model.java.JavaSourceRootType
 import org.jetbrains.kotlin.analyzer.ModuleContent
 import org.jetbrains.kotlin.analyzer.ResolverForProject
 import org.jetbrains.kotlin.analyzer.ResolverForProjectImpl
@@ -102,7 +105,7 @@ fun createModuleResolverProvider(
 
 fun collectAllModuleInfosFromIdeaModel(project: Project): List<IdeaModuleInfo> {
     val ideaModules = ModuleManager.getInstance(project).modules.toList()
-    val modulesSourcesInfos = ideaModules.flatMap { listOf(it.productionSourceInfo(), it.testSourceInfo()) }
+    val modulesSourcesInfos = ideaModules.flatMap(Module::correspondingModuleInfos)
 
     //TODO: (module refactoring) include libraries that are not among dependencies of any module
     val ideaLibraries = ideaModules.flatMap {
@@ -128,6 +131,21 @@ private fun createBuiltIns(settings: PlatformAnalysisSettings, sdkContext: Globa
     val supportInstance = IdePlatformSupport.platformSupport[settings.platform] ?: return DefaultBuiltIns.Instance
     return supportInstance.createBuiltIns(settings, sdkContext)
 }
+
+
+private fun Module.correspondingModuleInfos(): List<ModuleSourceInfo> {
+    val hasProductionRoots = hasRootsOfType(JavaSourceRootType.SOURCE)
+    val hasTestRoots = hasRootsOfType(JavaSourceRootType.TEST_SOURCE)
+    return when {
+        !hasProductionRoots && !hasTestRoots -> emptyList<ModuleSourceInfo>()
+        hasProductionRoots && !hasTestRoots -> listOf(productionSourceInfo())
+        !hasProductionRoots && hasTestRoots -> listOf(testSourceInfo())
+        else -> listOf(productionSourceInfo(), testSourceInfo())
+    }
+}
+
+internal fun Module.hasRootsOfType(sourceRootType: JavaSourceRootType): Boolean =
+        rootManager.contentEntries.any { it.getSourceFolders(sourceRootType).isNotEmpty() }
 
 fun getAllProjectSdks(): Collection<Sdk> {
     return ProjectJdkTable.getInstance().allJdks.toList()
